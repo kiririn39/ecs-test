@@ -2,40 +2,39 @@
 // Created by Vlad Boroday on 2023-12-06.
 //
 
-#include "raylib.h"
 #include "Math.h"
-#include "raymath.h"
 
-int SEngine::Math::GetRandomValue(int min, int max)
+bool SEngine::Math::IsCompletelyEnvelopsBox(
+	SEngine::BoundingBox outer,
+	SEngine::BoundingBox inner,
+	SEngine::Vector3& overlap)
 {
-	return ::GetRandomValue(min, max);
-}
+	overlap.x = glm::min(outer.max.x, inner.max.x) - glm::max(outer.min.x, inner.min.x);
+	overlap.y = glm::min(outer.max.y, inner.max.y) - glm::max(outer.min.y, inner.min.y);
+	overlap.z = glm::min(outer.max.z, inner.max.z) - glm::max(outer.min.z, inner.min.z);
 
-float SEngine::Math::GetRandomValue(float min, float max)
-{
-	return Remap((float)GetRandomValue(0, 1000), 0.0f, 1000.0f, min, max);
+	return overlap.x > 0 && overlap.y > 0 && overlap.z > 0;
 }
 
 bool SEngine::Math::IsCompletelyEnvelopsBox(
 	SEngine::BoundingBox outer,
 	SEngine::BoundingBox inner,
-	SEngine::Vector2& bounceOffDirection)
+	SEngine::Vector2& overlap)
 {
-	if (outer.min.x > inner.min.x)
-		bounceOffDirection.x += 1;
-	if (outer.min.y > inner.min.y)
-		bounceOffDirection.y += 1;
-	if (outer.max.x < inner.max.x)
-		bounceOffDirection.x -= 1;
-	if (outer.max.y < inner.max.y)
-		bounceOffDirection.y -= 1;
+	bool isCompletelyEnveloped =
+		outer.min.x <= inner.min.x && outer.max.x >= inner.max.x &&
+			outer.min.y <= inner.min.y && outer.max.y >= inner.max.y;
 
-	bool result = outer.min.x <= inner.min.x &&
-		outer.min.y <= inner.min.y &&
-		outer.min.z <= inner.min.z &&
-		outer.max.x >= inner.max.x &&
-		outer.max.y >= inner.max.y &&
-		outer.max.z >= inner.max.z;
+	if (isCompletelyEnveloped)
+	{
+		overlap.x = 0.0f;
+		overlap.y = 0.0f;
+	}
+	else
+	{
+		overlap.x = glm::min(outer.max.x, inner.max.x) - glm::max(outer.min.x, inner.min.x);
+		overlap.y = glm::min(outer.max.y, inner.max.y) - glm::max(outer.min.y, inner.min.y);
+	}
 
-	return result;
+	return isCompletelyEnveloped;
 }

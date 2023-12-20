@@ -32,6 +32,10 @@ void SEngine::RenderingFeature::RegisterSystem(flecs::world& world)
 		.kind(flecs::PostFrame)
 		.iter(CheckExitRequest);
 
+	world.system<Window, WindowSize>("React to window resize")
+		.kind(flecs::PreFrame)
+		.iter(ReactToResize);
+
 	world.system<Window>("Begin drawing")
 		.kind<RenderPhases::PreDraw>()
 		.iter(BeginDrawing);
@@ -81,6 +85,7 @@ void SEngine::RenderingFeature::WindowLifecycleHandler(flecs::iter& iter, SEngin
 	{
 		for (auto& i : iter)
 		{
+			window[i].WindowHandle->SetConfigFlags(ConfigFlags::FLAG_WINDOW_RESIZABLE);
 			window[i].WindowHandle = new raylib::Window(1600, 900);
 			window[i].WindowHandle->SetTargetFPS(0);
 		}
@@ -107,13 +112,23 @@ void SEngine::RenderingFeature::UpdateWindowTitle(flecs::iter& iter,
 	}
 }
 
-void SEngine::RenderingFeature::UpdateWindowSize(
-	SEngine::Window& window,
-	const SEngine::WindowSize& size)
+void SEngine::RenderingFeature::UpdateWindowSize(SEngine::Window& window, const SEngine::WindowSize& size)
 {
 	window.WindowHandle->SetSize(size.Dimension);
 	MainCamera.get_mut<CameraDimensions>()->Value = size.Dimension;
 }
+
+void SEngine::RenderingFeature::ReactToResize(flecs::iter& iter, const SEngine::Window* window, SEngine::WindowSize* Size)
+{
+	for (auto& i : iter)
+	{
+		if (window[i].WindowHandle->IsResized())
+		{
+			MainCamera.get_mut<CameraDimensions>()->Value = window[i].WindowHandle->GetSize();
+		}
+	}
+}
+
 
 void SEngine::RenderingFeature::BeginDrawing(flecs::iter& iter, const SEngine::Window* window)
 {

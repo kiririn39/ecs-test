@@ -8,7 +8,7 @@ int main()
 	ecs_os_init();
 	flecs::log::set_level(0);
 	flecs::world world;
-
+	
 	std::vector features = {
 		RenderingFeature::MakeHandle(),
 		InputFeature::MakeHandle(),

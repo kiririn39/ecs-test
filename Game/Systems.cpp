@@ -84,20 +84,21 @@ namespace Game1
 			.with<EnemyShip>()
 			.term_at(4).entity(SEngine::MainCamera)
 			.kind(SEngine::Ecs::OnUpdate)
-			.each([](const SEngine::Position& position,
+			.each([](SEngine::Ecs::entity entity,
+				const SEngine::Position& position,
 				Velocity& velocity,
 				const Collision::BoxCollider& collider,
 				const SEngine::CameraDimensions& camera)
 			{
-			  SEngine::Vector2 bounceOff;
+			  SEngine::Vector2 overlap;
 			  auto entityBox = collider.GetBoundingBox(position.LocalPosition);
-			  bool envelops = SEngine::Math::IsCompletelyEnvelopsBox(camera.AsBoundingBox(), entityBox, bounceOff);
+			  bool envelops = SEngine::Math::IsCompletelyEnvelopsBox(camera.AsBoundingBox(), entityBox, overlap);
 
 			  if (!envelops)
 			  {
-				  if (bounceOff.x)
+				  if (overlap.x)
 					  velocity.Value.x *= -1;
-				  if (bounceOff.y)
+				  if (overlap.y)
 					  velocity.Value.y *= -1;
 			  }
 			});
@@ -186,7 +187,7 @@ namespace Game1
 	{
 		SEngine::Vector2 dimensions = SEngine::MainCamera.get<SEngine::CameraDimensions>()->Value;
 
-		shipTexture = world.entity("spaceShooterRedux/PNG/playerShip1_blue.png").add<SEngine::TextureCache>();
+		shipTexture = world.entity("SpaceShooterRedux/PNG/playerShip1_blue.png").add<SEngine::TextureCache>();
 		laserTexture = world.entity("SpaceShooterRedux/PNG/Lasers/laserBlue07.png").add<SEngine::TextureCache>();
 		font = world.entity("Fonts/insigne-display/Insigne Display.otf").add<SEngine::FontCache>();
 
@@ -212,15 +213,14 @@ namespace Game1
 
 		SEngine::Vector2 point((dimensions.x / 2), 50.0f);
 
-		for (int i = 0; i < 10000; ++i)
+		for (int i = 0; i < 1; ++i)
 		{
-			float xSpeed = SEngine::Math::RandomInRange(-200.0f, 200.0f);
-			float ySpeed = SEngine::Math::RandomInRange(-200.0f, 200.0f);
-			point.y = SEngine::Math::RandomInRange(50.0f, 400.0f);
+			float xSpeed = SEngine::Math::GetRandomValue(-200.0f, 200.0f);
+			point.y = SEngine::Math::GetRandomValue(50.0f, 400.0f);
 
 			world.entity().set_doc_name("instance of enemy ship")
 				.set<SEngine::Position>({ point })
-				.set<Velocity>({ .Value = { xSpeed, ySpeed }})
+				.set<Velocity>({ .Value = { xSpeed, 0 }})
 				.set<Health>({ .Value = 10 })
 				.add<Collision::EnemyLayer>()
 				.add<EnemyShip>()

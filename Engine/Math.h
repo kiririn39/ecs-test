@@ -6,18 +6,24 @@
 #define UNTITLED1_ENGINE_MATH_H_
 
 #include "Types.h"
-#include "mathfu/utilities.h"
 
 namespace SEngine::Math
 {
-	using namespace mathfu;
+	template<typename Number>
+	Number GetRandomValue(Number min, Number max);
 
-	int GetRandomValue(int min, int max);
-	float GetRandomValue(float min, float max);
+	template<typename Number>
+	Number Clamp(Number value, Number min, Number max);
+
+	bool IsCompletelyEnvelopsBox(SEngine::BoundingBox outer,
+		SEngine::BoundingBox inner,
+		SEngine::Vector3& bounceOffDirection);
 
 	bool IsCompletelyEnvelopsBox(SEngine::BoundingBox outer,
 		SEngine::BoundingBox inner,
 		SEngine::Vector2& bounceOffDirection);
 }
+
+#include "Math.inl"
 
 #endif //UNTITLED1_ENGINE_MATH_H_

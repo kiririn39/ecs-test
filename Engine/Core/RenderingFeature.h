@@ -22,6 +22,7 @@ namespace SEngine
 		static void UpdateWindowTitle(flecs::iter& iter, const Window* window, const WindowTitle* title);
 		static void UpdateWindowSize(SEngine::Window& window, const SEngine::WindowSize& size);
 		static void CheckExitRequest(flecs::iter& iter, const Window* window);
+		static void ReactToResize(flecs::iter& iter, const SEngine::Window* window, SEngine::WindowSize* Size);
 
 		static void BeginDrawing(flecs::iter& iter, const Window* window);
 		static void DrawTextureEntities(const SEngine::Position& position, const SEngine::TextureComponent& texture);

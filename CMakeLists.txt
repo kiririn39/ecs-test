@@ -4,7 +4,7 @@ project(untitled1)
 set(CMAKE_CXX_STANDARD 23)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS Game/*.cpp Game/*.h Engine/*.cpp Engine/*.h)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS Game/*.cpp Game/*.h Game/*.inl Engine/*.cpp Engine/*.h Engine/*.inl)
 add_executable(untitled1 main.cpp ${SOURCES})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -70,17 +70,13 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DFLECS_DEBUG=1)
 endif ()
 
-FetchContent_Declare(mathfu
-        GIT_REPOSITORY https://github.com/google/mathfu.git)
-FetchContent_MakeAvailable(mathfu)
-
-set(mathfu_build_benchmarks OFF CACHE BOOL "")
-set(mathfu_build_tests OFF CACHE BOOL "")
-mathfu_configure_flags(${PROJECT_NAME})
+FetchContent_Declare(glm
+        GIT_REPOSITORY https://github.com/g-truc/glm.git)
+FetchContent_MakeAvailable(glm)
 
 install(TARGETS untitled1)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC raylib raylib_cpp fmt flecs)
+target_link_libraries(${PROJECT_NAME} PUBLIC raylib raylib_cpp fmt flecs glm)
 
 add_custom_command(
         TARGET untitled1 POST_BUILD

@@ -6,7 +6,12 @@
 
 SEngine::String SEngine::GetAssetPath(const char* path)
 {
-	return SEngine::Format("{}/Resources/{}", GetApplicationDirectory(), path);
+#if defined(__linux__)
+	String ResourcesFormat = "{}Resources/{}";
+#else
+	String ResourcesFormat = "{}/Resources/{}";
+#endif
+	return SEngine::Format(ResourcesFormat, GetApplicationDirectory(), path);
 }
 
 SEngine::String SEngine::GetAssetPath(const SEngine::String& path)
