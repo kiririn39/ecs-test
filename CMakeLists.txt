@@ -46,8 +46,10 @@ FetchContent_MakeAvailable(fmt)
 #        GIT_TAG main)
 #FetchContent_MakeAvailable(box2d)
 
-FetchContent_Declare(flecs
-        GIT_REPOSITORY https://github.com/SanderMertens/flecs.git)
+FetchContent_Declare(
+        flecs
+        GIT_REPOSITORY https://github.com/SanderMertens/flecs.git
+)
 FetchContent_MakeAvailable(flecs)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")

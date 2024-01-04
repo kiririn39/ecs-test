@@ -18,12 +18,53 @@ namespace Game1
 
 	SEngine::Ecs::entity scoreText;
 	SEngine::Ecs::entity onEnemyDied;
+	SEngine::Ecs::entity shipBase;
+	SEngine::Ecs::entity enemyPawnPrefab;
 
 	SEngine::Ecs::query<const SEngine::Position, const Collision::BoxCollider, Health> EnemiesQuery;
+
+	void GameSystems::AddEnemyLineSpawn(SEngine::Ecs::world& world, SEngine::Ecs::entity prefab, float worldTime,
+		SEngine::Vector2 startAt, SEngine::Vector2 interval, int count)
+	{
+		for (int i = 0; i < count; ++i)
+		{
+			SEngine::Vector2 point = startAt + interval * i;
+
+			world.entity().set<EnemySpawnInfo>({ .WorldTime = worldTime, .Position = point, .Prefab = prefab });
+		}
+	}
+
+	void GameSystems::AddEnemyTriangleSpawn(SEngine::Ecs::world& world, SEngine::Ecs::entity prefab, float worldTime,
+		SEngine::Vector2 startAt, SEngine::Vector2 interval, int count)
+	{
+		int LineCount = 0;
+		int LineIndex = 0;
+		int LineSpawns = 1;
+
+		for (int i = 0; i < count; ++i)
+		{
+			SEngine::Vector2 point =
+				startAt + SEngine::Vector2(interval.x * LineIndex - interval.x * LineCount, interval.y * LineCount);
+
+			world.entity().set<EnemySpawnInfo>({ .WorldTime = worldTime, .Position = point, .Prefab = prefab });
+
+			LineIndex++;
+			if (LineIndex >= LineSpawns)
+			{
+				LineIndex = 0;
+				LineCount++;
+				LineSpawns += 2;
+			}
+		}
+	}
 
 	void GameSystems::RegisterTypes(SEngine::Ecs::world& world)
 	{
 		onEnemyDied = world.entity("On enemy died event");
+
+		EnemiesQuery = world.query_builder<const SEngine::Position, const Collision::BoxCollider, Health>()
+			.with<const Collision::EnemyLayer>()
+			.build();
 	}
 
 	void GameSystems::RegisterSystem(SEngine::Ecs::world& world)
@@ -49,11 +90,42 @@ namespace Game1
 			  cache.Id = SEngine::TextureUnmanaged(path);
 			});
 
-		world.system<SEngine::Position, SEngine::KeyBinding>()
+		auto enemiesSpawner = world.system("Spawn enemy spawns")
+			.kind(SEngine::Ecs::PreFrame)
+			.interval(5.0f)
+			.iter([](SEngine::Ecs::iter iter)
+			{
+			  flecs::world world = iter.world();
+
+			  int count = SEngine::Math::GetRandomValue(2, 7);
+			  float xStart = SEngine::Math::GetRandomValue(50, 1000);
+			  AddEnemyLineSpawn(world, enemyPawnPrefab, 0.0f, { xStart, -100 }, { 100, -100 }, count);
+
+			  count = SEngine::Math::GetRandomValue(5, 20);
+			  xStart = SEngine::Math::GetRandomValue(50, 1000);
+			  AddEnemyTriangleSpawn(world, enemyPawnPrefab, 5.0f, { xStart, -100 }, { 100, -100 }, count);
+			});
+
+		world.system<const EnemySpawnInfo>("Spawn enemies from spawners")
+			.kind(SEngine::Ecs::PreFrame)
+			.interval(0.5f)
+			.each([](SEngine::Ecs::entity entity, const EnemySpawnInfo& spawnInfo)
+			{
+			  if (entity.world().get_info()->world_time_total < spawnInfo.WorldTime)
+				  return;
+
+			  entity.world().entity().set_doc_name("instance of enemy ship")
+				  .set<SEngine::Position>({ spawnInfo.Position })
+				  .is_a(spawnInfo.Prefab);
+
+			  entity.set<DestroyComponent>({});
+			}).depends_on(enemiesSpawner);
+
+		world.system<SEngine::Position, SEngine::KeyBinding>("Shoot lasers system")
 			.term_at(1).with<Player>()
 			.term_at(2).entity(SEngine::KeyBinding::Space_Key)
 			.kind(SEngine::Ecs::OnUpdate)
-			.interval(1 / 30.0f)
+			.interval(1 / 10.0f)
 			.each([](const SEngine::Ecs::entity entity,
 				SEngine::Position& position,
 				const SEngine::KeyBinding& keyBinding)
@@ -67,39 +139,51 @@ namespace Game1
 				  .set_doc_name("instance of laser beam prefab");
 			});
 
-		world.system<Speed, SEngine::Position, SEngine::Axis2D>("Move Entity by input")
+		world.system<Speed::Max, SEngine::Position, SEngine::Axis2D>("Move Entity by input")
 			.term_at(3).entity(SEngine::Axis2D::MoveAxis2D)
 			.with<ReceiveDirectionInput>()
 			.kind(SEngine::Ecs::OnUpdate)
 			.each([](SEngine::Ecs::entity entity,
-				const Speed& speed,
+				const Speed::Max& speed,
 				const SEngine::Position& position,
 				const SEngine::Axis2D& axis)
 			{
 			  entity.set<Velocity>({ axis.value * speed.Value });
 			});
 
-		world.system<SEngine::Position, Velocity, Collision::BoxCollider, SEngine::CameraDimensions>(
-				"Oscillate enemy ships system")
-			.with<EnemyShip>()
-			.term_at(4).entity(SEngine::MainCamera)
+		world.system<SEngine::Position, Velocity, Speed::Max,
+					 Collision::BoxCollider, SEngine::CameraDimensions>(
+				"Pawn ai system")
+			.with<EnemyAi::Pawn>()
+			.term_at(2).optional()
+			.term_at(5).entity(SEngine::MainCamera)
 			.kind(SEngine::Ecs::OnUpdate)
 			.each([](SEngine::Ecs::entity entity,
 				const SEngine::Position& position,
 				Velocity& velocity,
+				const Speed::Max& MaxSpeed,
 				const Collision::BoxCollider& collider,
 				const SEngine::CameraDimensions& camera)
 			{
-			  SEngine::Vector2 overlap;
-			  auto entityBox = collider.GetBoundingBox(position.LocalPosition);
-			  bool envelops = SEngine::Math::IsCompletelyEnvelopsBox(camera.AsBoundingBox(), entityBox, overlap);
+			  Velocity* velocityMutable = &velocity;
 
-			  if (!envelops)
+			  if (!entity.has<Velocity>())
 			  {
-				  if (overlap.x)
-					  velocity.Value.x *= -1;
-				  if (overlap.y)
-					  velocity.Value.y *= -1;
+				  entity.add<Velocity>();
+				  velocityMutable = entity.get_mut<Velocity>();
+			  }
+
+			  velocityMutable->Value.y = MaxSpeed.Value;
+
+			  auto entityBox = collider.GetBoundingBox(position.LocalPosition);
+			  auto overlap = SEngine::Math::IsCompletelyOverlapsBox(camera.AsBoundingBox(), entityBox);
+
+			  if (!overlap.OverlapsCompletely)
+			  {
+				  bool hitFloor = overlap.IsBottomOutside;
+
+				  if (hitFloor)
+					  entity.set<DestroyComponent>({ entity.world(), 0 });
 			  }
 			});
 
@@ -119,10 +203,6 @@ namespace Game1
 			{
 			  position.LocalPosition += velocity.Value * entity.world().delta_time();
 			});
-
-		EnemiesQuery = world.query_builder<const SEngine::Position, const Collision::BoxCollider, Health>()
-			.with<const Collision::EnemyLayer>()
-			.build();
 
 		world.system<SEngine::Position, Collision::BoxCollider>(
 				"Collide bullets with enemies system")
@@ -148,7 +228,7 @@ namespace Game1
 				if (!hasCollision)
 					return;
 
-				health.Value -= 1;
+				iter.entity(index).set<Health>({ .Value = health.Value - 1 });
 
 				if (health.Value <= 0)
 				{
@@ -196,36 +276,19 @@ namespace Game1
 			.set<SEngine::TextComponent>({ .Text = { font.get<SEngine::FontCache>()->Id, "Score 0", 70.0f, 10.0f }})
 			.set<ScoreCounter>({ .Format = "Score {}" });
 
-		SEngine::Ecs::entity shipBase = world.prefab("ship prefab")
+		shipBase = world.prefab("ship prefab")
 			.set<SEngine::Position>({ .LocalPosition = { 0, 0 }})
 			.set<Collision::BoxCollider>({ .Dimensions = shipTexture.get<SEngine::TextureCache>()->Id.GetSize() })
-			.set<Speed>({ .Value = { 0, 0 }})
+			.set<Speed::Max>({ .Value = 200 })
 			.set<SEngine::TextureComponent>({
 				.Id = shipTexture.get<SEngine::TextureCache>()->Id,
 				.DrawOrigin{ 0.5, 0.5 }});
 
 		world.entity("instance of player ship")
 			.add<Player>()
-			.set<Speed>({ .Value = { 100, 100 }})
 			.add<ReceiveDirectionInput>()
 			.add<Collision::PlayerLayer>()
 			.is_a(shipBase);
-
-		SEngine::Vector2 point((dimensions.x / 2), 50.0f);
-
-		for (int i = 0; i < 1; ++i)
-		{
-			float xSpeed = SEngine::Math::GetRandomValue(-200.0f, 200.0f);
-			point.y = SEngine::Math::GetRandomValue(50.0f, 400.0f);
-
-			world.entity().set_doc_name("instance of enemy ship")
-				.set<SEngine::Position>({ point })
-				.set<Velocity>({ .Value = { xSpeed, 0 }})
-				.set<Health>({ .Value = 10 })
-				.add<Collision::EnemyLayer>()
-				.add<EnemyShip>()
-				.is_a(shipBase);
-		}
 
 		beamPrefab = world.prefab("laser beam prefab")
 			.set<Velocity>({ .Value = { 0, -300 }})
@@ -234,5 +297,14 @@ namespace Game1
 			.add<Collision::EnemyLayer, Collision::CollideWithLayer>()
 			.set<Collision::BoxCollider>({ .Dimensions = laserTexture.get<SEngine::TextureCache>()->Id.GetSize() })
 			.set<SEngine::TextureComponent>({ .Id = laserTexture.get<SEngine::TextureCache>()->Id });
+
+		enemyPawnPrefab = world.prefab().set_doc_name("instance of enemy ship")
+			.add<SEngine::Position>()
+			.set<Speed::Max>({ .Value = 100 })
+			.set<Health>({ .Value = 3 })
+			.add<Collision::EnemyLayer>()
+			.add<EnemyAi::Pawn>()
+			.add<EnemyShip>()
+			.is_a(shipBase);
 	}
 } // Game1

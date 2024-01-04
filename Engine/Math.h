@@ -15,13 +15,19 @@ namespace SEngine::Math
 	template<typename Number>
 	Number Clamp(Number value, Number min, Number max);
 
-	bool IsCompletelyEnvelopsBox(SEngine::BoundingBox outer,
-		SEngine::BoundingBox inner,
-		SEngine::Vector3& bounceOffDirection);
+	struct OverlapInfo
+	{
+		bool IsTopOutside = false;
+		bool IsBottomOutside = false;
+		bool IsLeftOutside = false;
+		bool IsRightOutside = false;
 
-	bool IsCompletelyEnvelopsBox(SEngine::BoundingBox outer,
-		SEngine::BoundingBox inner,
-		SEngine::Vector2& bounceOffDirection);
+		bool OverlapsCompletely = false;
+		bool OverlapsPartialy = false;
+	};
+	OverlapInfo IsCompletelyOverlapsBox(SEngine::BoundingBox center, SEngine::BoundingBox target);
+
+	float Sin(float value);
 }
 
 #include "Math.inl"

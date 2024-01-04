@@ -4,37 +4,28 @@
 
 #include "Math.h"
 
-bool SEngine::Math::IsCompletelyEnvelopsBox(
-	SEngine::BoundingBox outer,
-	SEngine::BoundingBox inner,
-	SEngine::Vector3& overlap)
-{
-	overlap.x = glm::min(outer.max.x, inner.max.x) - glm::max(outer.min.x, inner.min.x);
-	overlap.y = glm::min(outer.max.y, inner.max.y) - glm::max(outer.min.y, inner.min.y);
-	overlap.z = glm::min(outer.max.z, inner.max.z) - glm::max(outer.min.z, inner.min.z);
+using namespace SEngine;
+using namespace SEngine::Math;
 
-	return overlap.x > 0 && overlap.y > 0 && overlap.z > 0;
+OverlapInfo SEngine::Math::IsCompletelyOverlapsBox(SEngine::BoundingBox center, SEngine::BoundingBox target)
+{
+	OverlapInfo overlap;
+
+	overlap.IsLeftOutside = target.min.x < center.min.x;
+	overlap.IsRightOutside = target.max.x > center.max.x;
+	overlap.IsTopOutside = target.min.y < center.min.y;
+	overlap.IsBottomOutside = target.max.y > center.max.y;
+
+	overlap.OverlapsCompletely = !overlap.IsLeftOutside && !overlap.IsRightOutside &&
+		!overlap.IsTopOutside && !overlap.IsBottomOutside;
+
+	overlap.OverlapsPartialy = !overlap.IsLeftOutside || !overlap.IsRightOutside ||
+		!overlap.IsTopOutside || !overlap.IsBottomOutside;
+
+	return overlap;
 }
 
-bool SEngine::Math::IsCompletelyEnvelopsBox(
-	SEngine::BoundingBox outer,
-	SEngine::BoundingBox inner,
-	SEngine::Vector2& overlap)
+float SEngine::Math::Sin(float value)
 {
-	bool isCompletelyEnveloped =
-		outer.min.x <= inner.min.x && outer.max.x >= inner.max.x &&
-			outer.min.y <= inner.min.y && outer.max.y >= inner.max.y;
-
-	if (isCompletelyEnveloped)
-	{
-		overlap.x = 0.0f;
-		overlap.y = 0.0f;
-	}
-	else
-	{
-		overlap.x = glm::min(outer.max.x, inner.max.x) - glm::max(outer.min.x, inner.min.x);
-		overlap.y = glm::min(outer.max.y, inner.max.y) - glm::max(outer.min.y, inner.min.y);
-	}
-
-	return isCompletelyEnveloped;
+	return glm::sin(value);
 }

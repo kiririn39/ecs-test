@@ -20,7 +20,15 @@ namespace Game1
 
 	struct Speed
 	{
-		SEngine::Vector2 Value;
+		struct Current
+		{
+			float Value;
+		};
+
+		struct Max
+		{
+			float Value;
+		};
 	};
 
 	struct ReceiveDirectionInput
@@ -85,7 +93,21 @@ namespace Game1
 
 	struct EnemyDied
 	{
-		
+
+	};
+
+	struct EnemyAi
+	{
+		struct Pawn
+		{
+		};
+	};
+
+	struct EnemySpawnInfo
+	{
+		float WorldTime;
+		SEngine::Vector2 Position;
+		SEngine::Ecs::entity Prefab;
 	};
 }
 
