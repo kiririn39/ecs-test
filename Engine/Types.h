@@ -52,6 +52,27 @@ namespace SEngine
 		Vector2 LocalPosition;
 	};
 
+	struct Rotation
+	{
+		float Radians;
+
+		const float GetAngle() const;
+		void AddAngle(float angle);
+
+		static Rotation CreateFromAngle(float angle);
+
+		const static Rotation Up;
+		const static Rotation Down;
+		const static Rotation Left;
+		const static Rotation Right;
+	};
+
+	struct Transform
+	{
+		Position Position;
+		Rotation Rotation;
+	};
+
 	struct TextureComponent
 	{
 		SEngine::TextureUnmanaged Id;

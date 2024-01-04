@@ -21,20 +21,21 @@ namespace Game1
 	SEngine::Ecs::entity shipBase;
 	SEngine::Ecs::entity enemyPawnPrefab;
 
-	SEngine::Ecs::query<const SEngine::Position, const Collision::BoxCollider, Health> EnemiesQuery;
+	SEngine::Ecs::query<const SEngine::Transform, const Collision::BoxCollider, Health> EnemiesQuery;
 
-	void GameSystems::AddEnemyLineSpawn(SEngine::Ecs::world& world, SEngine::Ecs::entity prefab, float worldTime,
+	void GameSystems::AddEnemyLineSpawn(SEngine::Ecs::world& world, SpawnInfo spawn,
 		SEngine::Vector2 startAt, SEngine::Vector2 interval, int count)
 	{
 		for (int i = 0; i < count; ++i)
 		{
 			SEngine::Vector2 point = startAt + interval * i;
 
-			world.entity().set<EnemySpawnInfo>({ .WorldTime = worldTime, .Position = point, .Prefab = prefab });
+			spawn.Transform.Position.LocalPosition = point;
+			world.entity().set<SpawnInfo>(spawn);
 		}
 	}
 
-	void GameSystems::AddEnemyTriangleSpawn(SEngine::Ecs::world& world, SEngine::Ecs::entity prefab, float worldTime,
+	void GameSystems::AddEnemyTriangleSpawn(SEngine::Ecs::world& world, SpawnInfo spawn,
 		SEngine::Vector2 startAt, SEngine::Vector2 interval, int count)
 	{
 		int LineCount = 0;
@@ -46,7 +47,8 @@ namespace Game1
 			SEngine::Vector2 point =
 				startAt + SEngine::Vector2(interval.x * LineIndex - interval.x * LineCount, interval.y * LineCount);
 
-			world.entity().set<EnemySpawnInfo>({ .WorldTime = worldTime, .Position = point, .Prefab = prefab });
+			spawn.Transform.Position.LocalPosition = point;
+			world.entity().set<SpawnInfo>(spawn);
 
 			LineIndex++;
 			if (LineIndex >= LineSpawns)
@@ -62,7 +64,7 @@ namespace Game1
 	{
 		onEnemyDied = world.entity("On enemy died event");
 
-		EnemiesQuery = world.query_builder<const SEngine::Position, const Collision::BoxCollider, Health>()
+		EnemiesQuery = world.query_builder<const SEngine::Transform, const Collision::BoxCollider, Health>()
 			.with<const Collision::EnemyLayer>()
 			.build();
 	}
@@ -97,61 +99,71 @@ namespace Game1
 			{
 			  flecs::world world = iter.world();
 
+			  SpawnInfo spawnInfo
+				  {
+					  .WorldTime = SEngine::TimeNowSeconds(world),
+					  .Transform.Rotation = SEngine::Rotation::Down,
+					  .Prefab = enemyPawnPrefab,
+				  };
+
 			  int count = SEngine::Math::GetRandomValue(2, 7);
 			  float xStart = SEngine::Math::GetRandomValue(50, 1000);
-			  AddEnemyLineSpawn(world, enemyPawnPrefab, 0.0f, { xStart, -100 }, { 100, -100 }, count);
+			  AddEnemyLineSpawn(world, spawnInfo, { xStart, -100 }, { 100, -100 }, count);
 
+			  spawnInfo.WorldTime = SEngine::TimeNowSeconds(world) + 2.5f;
 			  count = SEngine::Math::GetRandomValue(5, 20);
 			  xStart = SEngine::Math::GetRandomValue(50, 1000);
-			  AddEnemyTriangleSpawn(world, enemyPawnPrefab, 5.0f, { xStart, -100 }, { 100, -100 }, count);
+			  AddEnemyTriangleSpawn(world, spawnInfo, { xStart, -100 }, { 100, -100 }, count);
 			});
 
-		world.system<const EnemySpawnInfo>("Spawn enemies from spawners")
+		world.system<const SpawnInfo>("Spawn enemies from spawners")
 			.kind(SEngine::Ecs::PreFrame)
 			.interval(0.5f)
-			.each([](SEngine::Ecs::entity entity, const EnemySpawnInfo& spawnInfo)
+			.each([](SEngine::Ecs::entity entity, const SpawnInfo& spawnInfo)
 			{
 			  if (entity.world().get_info()->world_time_total < spawnInfo.WorldTime)
 				  return;
 
-			  entity.world().entity().set_doc_name("instance of enemy ship")
-				  .set<SEngine::Position>({ spawnInfo.Position })
+			  auto instance = entity.world().entity().set_doc_name("instance of enemy ship")
+				  .set<SEngine::Transform>({ spawnInfo.Transform })
 				  .is_a(spawnInfo.Prefab);
+
+			  if (spawnInfo.Parent != spawnInfo.NullParent)
+				  instance.child_of(spawnInfo.Parent);
 
 			  entity.set<DestroyComponent>({});
 			}).depends_on(enemiesSpawner);
 
-		world.system<SEngine::Position, SEngine::KeyBinding>("Shoot lasers system")
+		world.system<SEngine::Transform, SEngine::KeyBinding>("Shoot lasers system")
 			.term_at(1).with<Player>()
 			.term_at(2).entity(SEngine::KeyBinding::Space_Key)
 			.kind(SEngine::Ecs::OnUpdate)
 			.interval(1 / 10.0f)
 			.each([](const SEngine::Ecs::entity entity,
-				SEngine::Position& position,
+				const SEngine::Transform& transform,
 				const SEngine::KeyBinding& keyBinding)
 			{
 			  if (!keyBinding.IsKeyDown)
 				  return;
 
 			  entity.world().entity().is_a(beamPrefab)
-				  .set<SEngine::Position>(position)
+				  .set<SEngine::Transform>(transform)
 				  .set<DestroyComponent>({ entity.world(), 2.0f })
 				  .set_doc_name("instance of laser beam prefab");
 			});
 
-		world.system<Speed::Max, SEngine::Position, SEngine::Axis2D>("Move Entity by input")
-			.term_at(3).entity(SEngine::Axis2D::MoveAxis2D)
+		world.system<Speed::Max, SEngine::Axis2D>("Move Entity by input")
+			.term_at(2).entity(SEngine::Axis2D::MoveAxis2D)
 			.with<ReceiveDirectionInput>()
 			.kind(SEngine::Ecs::OnUpdate)
 			.each([](SEngine::Ecs::entity entity,
 				const Speed::Max& speed,
-				const SEngine::Position& position,
 				const SEngine::Axis2D& axis)
 			{
 			  entity.set<Velocity>({ axis.value * speed.Value });
 			});
 
-		world.system<SEngine::Position, Velocity, Speed::Max,
+		world.system<SEngine::Transform, Velocity, Speed::Max,
 					 Collision::BoxCollider, SEngine::CameraDimensions>(
 				"Pawn ai system")
 			.with<EnemyAi::Pawn>()
@@ -159,7 +171,7 @@ namespace Game1
 			.term_at(5).entity(SEngine::MainCamera)
 			.kind(SEngine::Ecs::OnUpdate)
 			.each([](SEngine::Ecs::entity entity,
-				const SEngine::Position& position,
+				const SEngine::Transform& transform,
 				Velocity& velocity,
 				const Speed::Max& MaxSpeed,
 				const Collision::BoxCollider& collider,
@@ -175,7 +187,7 @@ namespace Game1
 
 			  velocityMutable->Value.y = MaxSpeed.Value;
 
-			  auto entityBox = collider.GetBoundingBox(position.LocalPosition);
+			  auto entityBox = collider.GetBoundingBox(transform.Position.LocalPosition);
 			  auto overlap = SEngine::Math::IsCompletelyOverlapsBox(camera.AsBoundingBox(), entityBox);
 
 			  if (!overlap.OverlapsCompletely)
@@ -187,42 +199,44 @@ namespace Game1
 			  }
 			});
 
-		world.system<SEngine::Position, SEngine::CameraDimensions>("Clamp player position to window size")
+		world.system<SEngine::Transform, SEngine::CameraDimensions>("Clamp player position to window size")
 			.with<Player>()
 			.term_at(2).entity(SEngine::MainCamera)
 			.kind(SEngine::Ecs::PostUpdate)
-			.each([](SEngine::Position& position, const SEngine::CameraDimensions& camera)
+			.each([](SEngine::Transform& transform, const SEngine::CameraDimensions& camera)
 			{
-			  position.LocalPosition.x = SEngine::Math::Clamp(position.LocalPosition.x, 0.0f, camera.Value.x);
-			  position.LocalPosition.y = SEngine::Math::Clamp(position.LocalPosition.y, 0.0f, camera.Value.y);
+			  transform.Position.LocalPosition.x =
+				  SEngine::Math::Clamp(transform.Position.LocalPosition.x, 0.0f, camera.Value.x);
+			  transform.Position.LocalPosition.y =
+				  SEngine::Math::Clamp(transform.Position.LocalPosition.y, 0.0f, camera.Value.y);
 			});
 
-		world.system<SEngine::Position, Velocity>("Apply velocity")
+		world.system<SEngine::Transform, Velocity>("Apply velocity")
 			.kind(SEngine::Ecs::PostUpdate)
-			.each([](const SEngine::Ecs::entity entity, SEngine::Position& position, Velocity& velocity)
+			.each([](const SEngine::Ecs::entity entity, SEngine::Transform& transform, Velocity& velocity)
 			{
-			  position.LocalPosition += velocity.Value * entity.world().delta_time();
+			  transform.Position.LocalPosition += velocity.Value * entity.world().delta_time();
 			});
 
-		world.system<SEngine::Position, Collision::BoxCollider>(
+		world.system<SEngine::Transform, Collision::BoxCollider>(
 				"Collide bullets with enemies system")
 			.with<Collision::EnemyLayer, Collision::CollideWithLayer>()
 			.kind(SEngine::Ecs::PostUpdate)
 			.each([](SEngine::Ecs::iter iter,
 				size_t i,
-				const SEngine::Position& position,
+				const SEngine::Transform& transform,
 				const Collision::BoxCollider& boxCollider)
 			{
-			  SEngine::BoundingBox bulletBox = boxCollider.GetBoundingBox(position.LocalPosition);
+			  SEngine::BoundingBox bulletBox = boxCollider.GetBoundingBox(transform.Position.LocalPosition);
 			  bool hasCollision = false;
 
 			  EnemiesQuery.each([bulletBox, &hasCollision](SEngine::Ecs::iter iter,
 				  size_t& index,
-				  const SEngine::Position& position,
+				  const SEngine::Transform& transform,
 				  const Collision::BoxCollider& boxCollider,
 				  Health& health)
 			  {
-				SEngine::BoundingBox box = boxCollider.GetBoundingBox(position.LocalPosition);
+				SEngine::BoundingBox box = boxCollider.GetBoundingBox(transform.Position.LocalPosition);
 				hasCollision = box.CheckCollision(bulletBox);
 
 				if (!hasCollision)
@@ -272,12 +286,12 @@ namespace Game1
 		font = world.entity("Fonts/insigne-display/Insigne Display.otf").add<SEngine::FontCache>();
 
 		scoreText = world.entity("Score text")
-			.set<SEngine::Position>({ .LocalPosition = { dimensions.x / 2.0f, 50.0f }})
+			.set<SEngine::Transform>({ .Position.LocalPosition = { dimensions.x / 2.0f, 50.0f }})
 			.set<SEngine::TextComponent>({ .Text = { font.get<SEngine::FontCache>()->Id, "Score 0", 70.0f, 10.0f }})
 			.set<ScoreCounter>({ .Format = "Score {}" });
 
 		shipBase = world.prefab("ship prefab")
-			.set<SEngine::Position>({ .LocalPosition = { 0, 0 }})
+			.set<SEngine::Transform>({ .Position.LocalPosition = { 0, 0 }})
 			.set<Collision::BoxCollider>({ .Dimensions = shipTexture.get<SEngine::TextureCache>()->Id.GetSize() })
 			.set<Speed::Max>({ .Value = 200 })
 			.set<SEngine::TextureComponent>({
@@ -292,15 +306,15 @@ namespace Game1
 
 		beamPrefab = world.prefab("laser beam prefab")
 			.set<Velocity>({ .Value = { 0, -300 }})
-			.add<SEngine::Position>()
+			.add<SEngine::Transform>()
 			.add<DestroyComponent>()
 			.add<Collision::EnemyLayer, Collision::CollideWithLayer>()
 			.set<Collision::BoxCollider>({ .Dimensions = laserTexture.get<SEngine::TextureCache>()->Id.GetSize() })
 			.set<SEngine::TextureComponent>({ .Id = laserTexture.get<SEngine::TextureCache>()->Id });
 
-		enemyPawnPrefab = world.prefab().set_doc_name("instance of enemy ship")
-			.add<SEngine::Position>()
-			.set<Speed::Max>({ .Value = 100 })
+		enemyPawnPrefab = world.prefab().set_doc_name("enemy ship prefab")
+			.add<SEngine::Transform>()
+			.set<Speed::Max>({ .Value = 150 })
 			.set<Health>({ .Value = 3 })
 			.add<Collision::EnemyLayer>()
 			.add<EnemyAi::Pawn>()

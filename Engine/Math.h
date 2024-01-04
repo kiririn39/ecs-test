@@ -28,6 +28,11 @@ namespace SEngine::Math
 	OverlapInfo IsCompletelyOverlapsBox(SEngine::BoundingBox center, SEngine::BoundingBox target);
 
 	float Sin(float value);
+
+	float Rad2Angle(float rad);
+	float Angle2Rad(float angle);
+
+	inline float Pi();
 }
 
 #include "Math.inl"

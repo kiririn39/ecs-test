@@ -29,3 +29,18 @@ float SEngine::Math::Sin(float value)
 {
 	return glm::sin(value);
 }
+
+float Math::Angle2Rad(float angle)
+{
+	return glm::radians(angle);
+}
+
+float Math::Rad2Angle(float rad)
+{
+	return glm::degrees(rad);
+}
+
+float Pi()
+{
+	return PI;
+}

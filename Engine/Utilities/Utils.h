@@ -12,6 +12,8 @@ namespace SEngine
 {
 	String GetAssetPath(const String& path);
 	String GetAssetPath(const char* path);
+
+	float TimeNowSeconds(const SEngine::Ecs::world& world);
 }
 
 #endif //UNTITLED1_ENGINE_UTILITIES_UTILS_H_

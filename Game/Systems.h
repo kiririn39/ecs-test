@@ -7,6 +7,7 @@
 
 #include "Engine/Core/FeatureLifecycle.h"
 #include "Engine/Core/Types.h"
+#include "Types.h"
 
 namespace Game1
 {
@@ -19,10 +20,10 @@ namespace Game1
 		static void InitGlobals(SEngine::Ecs::world& world);
 
 	 private:
-		static void AddEnemyLineSpawn(SEngine::Ecs::world& world, SEngine::Ecs::entity prefab, float worldTime,
+		static void AddEnemyLineSpawn(SEngine::Ecs::world& world, SpawnInfo spawn,
 			SEngine::Vector2 startAt, SEngine::Vector2 interval, int count);
 
-		static void AddEnemyTriangleSpawn(SEngine::Ecs::world& world, SEngine::Ecs::entity prefab, float worldTime,
+		static void AddEnemyTriangleSpawn(SEngine::Ecs::world& world, SpawnInfo spawn,
 			SEngine::Vector2 startAt, SEngine::Vector2 interval, int count);
 	};
 

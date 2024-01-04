@@ -40,11 +40,11 @@ void SEngine::RenderingFeature::RegisterSystem(flecs::world& world)
 		.kind<RenderPhases::PreDraw>()
 		.iter(BeginDrawing);
 
-	world.system<Position, TextureComponent>("Draw textures")
+	world.system<SEngine::Transform, TextureComponent>("Draw textures")
 		.kind<RenderPhases::Draw>()
 		.each(DrawTextureEntities);
 
-	world.system<Position, TextComponent>("Draw Texts")
+	world.system<Transform, TextComponent>("Draw Texts")
 		.kind<RenderPhases::Draw>()
 		.each(DrawTextEntities);
 
@@ -118,7 +118,9 @@ void SEngine::RenderingFeature::UpdateWindowSize(SEngine::Window& window, const 
 	MainCamera.get_mut<CameraDimensions>()->Value = size.Dimension;
 }
 
-void SEngine::RenderingFeature::ReactToResize(flecs::iter& iter, const SEngine::Window* window, SEngine::WindowSize* Size)
+void SEngine::RenderingFeature::ReactToResize(flecs::iter& iter,
+	const SEngine::Window* window,
+	SEngine::WindowSize* Size)
 {
 	for (auto& i : iter)
 	{
@@ -128,7 +130,6 @@ void SEngine::RenderingFeature::ReactToResize(flecs::iter& iter, const SEngine::
 		}
 	}
 }
-
 
 void SEngine::RenderingFeature::BeginDrawing(flecs::iter& iter, const SEngine::Window* window)
 {
@@ -148,16 +149,25 @@ void SEngine::RenderingFeature::EndDrawing(flecs::iter& iter, const SEngine::Win
 	}
 }
 void SEngine::RenderingFeature::DrawTextureEntities(
-	const SEngine::Position& position,
+	const SEngine::Transform& transform,
 	const SEngine::TextureComponent& texture)
 {
-	Vector2 Size = texture.Id.GetSize();
-	texture.Id.Draw(position.LocalPosition - (Size * texture.DrawOrigin));
+	float scale = 1.0f;
+	float rotation = transform.Rotation.GetAngle();
+	Vector2 size = texture.Id.GetSize();
+	SEngine::Rectangle source = { 0.0f, 0.0f, (float)size.x, (float)size.y };
+	SEngine::Rectangle dest =
+		{ transform.Position.LocalPosition.x, transform.Position.LocalPosition.y, (float)texture.Id.width * scale,
+		  (float)texture.Id.height * scale };
+	Vector2 origin = texture.DrawOrigin;
+
+	texture.Id.Draw(source, dest, size * origin, rotation);
 }
 
-void SEngine::RenderingFeature::DrawTextEntities(const SEngine::Position& position,
+void SEngine::RenderingFeature::DrawTextEntities(const SEngine::Transform& transform,
 	const SEngine::TextComponent& textComponent)
 {
+	float rotation = transform.Rotation.GetAngle();
 	Vector2 size = textComponent.Text.MeasureEx();
-	textComponent.Text.Draw(position.LocalPosition, 0.0f, size * textComponent.DrawOrigin);
+	textComponent.Text.Draw(transform.Position.LocalPosition, rotation, size * textComponent.DrawOrigin);
 }

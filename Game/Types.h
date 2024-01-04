@@ -103,11 +103,14 @@ namespace Game1
 		};
 	};
 
-	struct EnemySpawnInfo
+	struct SpawnInfo
 	{
-		float WorldTime;
-		SEngine::Vector2 Position;
+		float WorldTime = 0.0f;
+		SEngine::Transform Transform;
 		SEngine::Ecs::entity Prefab;
+		SEngine::Ecs::entity Parent = SEngine::Ecs::entity::null();
+
+		const static SEngine::Ecs::entity NullParent;
 	};
 }
 

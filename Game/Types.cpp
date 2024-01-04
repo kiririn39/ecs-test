@@ -3,10 +3,11 @@
 //
 
 #include "Types.h"
+#include "Engine/Utilities/Utils.h"
 
 Game1::DestroyComponent::DestroyComponent(const SEngine::Ecs::world& world, float delay)
 {
-	AtWorldTime = world.get_info()->world_time_total + delay;
+	AtWorldTime = SEngine::TimeNowSeconds(world) + delay;
 }
 
 SEngine::BoundingBox Game1::Collision::BoxCollider::GetBoundingBox(SEngine::Vector2 position) const
@@ -16,3 +17,5 @@ SEngine::BoundingBox Game1::Collision::BoxCollider::GetBoundingBox(SEngine::Vect
 	SEngine::Vector3 max(extent.x + position.x, extent.y + position.y, 0.0f);
 	return { min, max };
 }
+
+const SEngine::Ecs::entity Game1::SpawnInfo::NullParent = SEngine::Ecs::entity::null();

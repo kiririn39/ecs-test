@@ -25,8 +25,8 @@ namespace SEngine
 		static void ReactToResize(flecs::iter& iter, const SEngine::Window* window, SEngine::WindowSize* Size);
 
 		static void BeginDrawing(flecs::iter& iter, const Window* window);
-		static void DrawTextureEntities(const SEngine::Position& position, const SEngine::TextureComponent& texture);
-		static void DrawTextEntities(const SEngine::Position& position, const SEngine::TextComponent& textComponent);
+		static void DrawTextureEntities(const SEngine::Transform& transform, const SEngine::TextureComponent& texture);
+		static void DrawTextEntities(const SEngine::Transform& transform, const SEngine::TextComponent& textComponent);
 		static void EndDrawing(flecs::iter& iter, const Window* window);
 	};
 }
