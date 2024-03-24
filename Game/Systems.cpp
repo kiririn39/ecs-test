@@ -19,7 +19,7 @@ namespace Game1
 	SEngine::Ecs::entity scoreText;
 	SEngine::Ecs::entity onEnemyDied;
 	SEngine::Ecs::entity shipBase;
-	SEngine::Ecs::entity enemyPawnPrefab;
+	SEngine::Ecs::entity enemySwarmerPrefab;
 
 	SEngine::Ecs::query<const SEngine::Transform, const Collision::BoxCollider, Health> EnemiesQuery;
 
@@ -103,7 +103,7 @@ namespace Game1
 							{
 									.WorldTime = SEngine::TimeNowSeconds(world),
 									.Transform.Rotation = SEngine::Rotation::Down,
-									.Prefab = enemyPawnPrefab,
+									.Prefab = enemySwarmerPrefab,
 							};
 
 					int count = SEngine::Math::GetRandomValue(2, 7);
@@ -163,28 +163,20 @@ namespace Game1
 					entity.set<Velocity>({ axis.value * speed.Value });
 				});
 
-		world.system<SEngine::Transform, Speed::Max,
+		world.system<SEngine::Transform, Velocity, Speed::Max,
 						Collision::BoxCollider, SEngine::CameraDimensions>(
-						"Pawn ai system")
-				.with<EnemyAi::Pawn>()
-				.term_at(4).entity(SEngine::MainCamera)
+						"Swarmer ai system")
+				.with<EnemyAi::Swarmer>()
+				.term_at(5).entity(SEngine::MainCamera)
 				.kind(SEngine::Ecs::OnUpdate)
 				.each([](SEngine::Ecs::entity entity,
 						const SEngine::Transform& transform,
+						Velocity& velocity,
 						const Speed::Max& MaxSpeed,
 						const Collision::BoxCollider& collider,
 						const SEngine::CameraDimensions& camera)
 				{
-					if (!entity.has<Velocity>())
-					{
-						entity.set<Velocity>({{ 0.0f, MaxSpeed.Value }});
-					}
-					else
-					{
-						Velocity* watever = entity.get_mut<Velocity>();
-
-						watever->Value.y = MaxSpeed.Value;
-					}
+					velocity.Value.y = MaxSpeed.Value;
 
 					auto entityBox = collider.GetBoundingBox(transform.Position.LocalPosition);
 					auto overlap = SEngine::Math::IsCompletelyOverlapsBox(camera.AsBoundingBox(), entityBox);
@@ -293,6 +285,7 @@ namespace Game1
 				.set<SEngine::Transform>({ .Position.LocalPosition = { 0, 0 }})
 				.set<Collision::BoxCollider>({ .Dimensions = shipTexture.get<SEngine::TextureCache>()->Id.GetSize() })
 				.set<Speed::Max>({ .Value = 200 })
+				.set<Velocity>({})
 				.set<SEngine::TextureComponent>({
 						.Id = shipTexture.get<SEngine::TextureCache>()->Id,
 						.DrawOrigin{ 0.5, 0.5 }});
@@ -311,12 +304,12 @@ namespace Game1
 				.set<Collision::BoxCollider>({ .Dimensions = laserTexture.get<SEngine::TextureCache>()->Id.GetSize() })
 				.set<SEngine::TextureComponent>({ .Id = laserTexture.get<SEngine::TextureCache>()->Id });
 
-		enemyPawnPrefab = world.prefab().set_doc_name("enemy ship prefab")
+		enemySwarmerPrefab = world.prefab().set_doc_name("enemy ship prefab")
 				.add<SEngine::Transform>()
 				.set<Speed::Max>({ .Value = 150 })
 				.set<Health>({ .Value = 3 })
 				.add<Collision::EnemyLayer>()
-				.add<EnemyAi::Pawn>()
+				.add<EnemyAi::Swarmer>()
 				.add<EnemyShip>()
 				.is_a(shipBase);
 	}

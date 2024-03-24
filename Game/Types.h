@@ -40,6 +40,7 @@ namespace Game1
 		float AtWorldTime;
 
 		DestroyComponent() = default;
+
 		DestroyComponent(const SEngine::Ecs::world& world, float delay);
 	};
 
@@ -100,6 +101,10 @@ namespace Game1
 	{
 		struct Pawn
 		{
+		};
+		struct Swarmer
+		{
+			
 		};
 	};
 
