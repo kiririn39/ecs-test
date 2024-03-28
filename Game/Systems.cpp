@@ -14,7 +14,8 @@ namespace Game1
 	SEngine::Ecs::entity shipTexture;
 	SEngine::Ecs::entity laserTexture;
 	SEngine::Ecs::entity font;
-	SEngine::Ecs::entity beamPrefab;
+	SEngine::Ecs::entity laserBeamBase;
+	SEngine::Ecs::entity PlayerlaserBeam;
 
 	SEngine::Ecs::entity scoreText;
 	SEngine::Ecs::entity onEnemyDied;
@@ -146,7 +147,8 @@ namespace Game1
 					if (!keyBinding.IsKeyDown)
 						return;
 
-					entity.world().entity().is_a(beamPrefab)
+					entity.world().entity()
+							.is_a(PlayerlaserBeam)
 							.set<SEngine::Transform>(transform)
 							.set<DestroyComponent>({ entity.world(), 2.0f })
 							.set_doc_name("instance of laser beam prefab");
@@ -296,13 +298,16 @@ namespace Game1
 				.add<Collision::PlayerLayer>()
 				.is_a(shipBase);
 
-		beamPrefab = world.prefab("laser beam prefab")
+		laserBeamBase = world.prefab("laser beam base prefab")
 				.set<Velocity>({ .Value = { 0, -300 }})
 				.add<SEngine::Transform>()
 				.add<DestroyComponent>()
-				.add<Collision::EnemyLayer, Collision::CollideWithLayer>()
 				.set<Collision::BoxCollider>({ .Dimensions = laserTexture.get<SEngine::TextureCache>()->Id.GetSize() })
 				.set<SEngine::TextureComponent>({ .Id = laserTexture.get<SEngine::TextureCache>()->Id });
+
+		PlayerlaserBeam = world.prefab("laser beam shot by player")
+				.is_a(laserBeamBase)
+				.add<Collision::EnemyLayer, Collision::CollideWithLayer>();
 
 		enemySwarmerPrefab = world.prefab().set_doc_name("enemy ship prefab")
 				.add<SEngine::Transform>()
